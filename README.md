@@ -10,6 +10,8 @@ My personal notes on web security. Shared in case they help someone else. **Lear
 
 - [Command Injection](vulnerabilities/command-injection.md)
 
+- [Subdomain Takeover](vulnerabilities/subdomain-takeover.md)
+
 ## Recon
 
 Coming soon...
