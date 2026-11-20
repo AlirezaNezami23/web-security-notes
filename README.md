@@ -12,6 +12,8 @@ My personal notes on web security. Shared in case they help someone else. **Lear
 
 - [Subdomain Takeover](vulnerabilities/subdomain-takeover.md)
 
+- [Security Misconfiguration](vulnerabilities/security-misconfiguration.md)
+
 ## Recon
 
 Coming soon...
