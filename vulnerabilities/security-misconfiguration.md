@@ -414,6 +414,4 @@ nginx -> version -> cve
 - ✅ **Principle of Least Privilege:** Restrict access to admin panels, management interfaces, and storage buckets by IP/auth.
 - ✅ **Automate scanning:** Use tools like Nuclei, Nikto, or cloud-specific scanners (ScoutSuite, Prowler) to catch misconfigurations continuously.
 
-## 🏷️ Tags
 
-`#security-misconfiguration` `#stack-trace` `#path-disclosure` `#directory-listing` `#default-credentials` `#http-verb-tampering` `#security-headers` `#information-disclosure` `#sensitive-data-exposure` `#outdated-software` `#manual-testing`
